@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wemulator</title>
+    <style>
+        body { 
+            background: #111116; 
+            color: #ffffff; 
+            font-family: system-ui, -apple-system, sans-serif; 
+            text-align: center; 
+            margin: 0; 
+            padding: 20px; 
+        }
+        h1 { 
+            color: #00a2ff; 
+            margin-bottom: 5px; 
+            font-size: 28px;
+        }
+        .container { 
+            max-width: 700px; 
+            margin: 20px auto; 
+            background: #1c1c24; 
+            padding: 25px; 
+            border-radius: 12px; 
+            border: 1px solid #2d2d3d; 
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+        }
+        canvas { 
+            background: #000; 
+            border: 4px solid #3a3a4a; 
+            border-radius: 8px; 
+            max-width: 100%; 
+            height: auto; 
+            display: block; 
+            margin: 20px auto; 
+        }
+        .upload-box { 
+            background: #252533; 
+            border: 2px dashed #44445c; 
+            padding: 20px; 
+            border-radius: 8px; 
+            margin: 15px 0; 
+            transition: border-color 0.2s;
+        }
+        .upload-box:hover {
+            border-color: #00a2ff;
+        }
+        input[type="file"] { 
+            color: #ccc; 
+            font-size: 14px;
+            cursor: pointer;
+        }
+        #log-window { 
+            background: #0b0b0f; 
+            border: 1px solid #222; 
+            border-radius: 6px; 
+            padding: 12px; 
+            height: 120px; 
+            overflow-y: auto; 
+            text-align: left; 
+            font-family: monospace; 
+            font-size: 12px; 
+            color: #00ff66; 
+            margin-top: 15px; 
+            white-space: pre-wrap; 
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Wemulator Console Environment</h1>
+    <p style="color: #888; margin-top: 0;">Running securely on free cloud infrastructure</p>
+
+    <div class="container">
+        <canvas id="wii-display" width="640" height="480"></canvas>
+
+        <div class="upload-box">
+            <p style="margin: 0 0 10px 0; font-weight: 600; font-size: 16px;">Load Wii System Firmware Archive</p>
+            <input type="file" id="wii-game-uploader" accept=".wad">
+        </div>
+
+        <div id="log-window">System: Ready. Awaiting WebAssembly runtime initialization signal...</div>
+    </div>
+
+    <script src="wii_engine.js"></script>
+
+    <script>
+        function logSystemMessage(msg) {
+            const consoleWindow = document.getElementById("log-window");
+            const stamp = new Date().toLocaleTimeString();
+            consoleWindow.textContent = `[${stamp}] - ${msg}\n` + consoleWindow.textContent;
+        }
+
+        if (typeof Module !== 'undefined') {
+            Module.onRuntimeInitialized = () => {
+                logSystemMessage("Compiled WebAssembly Core Engine active in background memory.");
+                Module._initWiiSystem(640, 480);
+                logSystemMessage("Wii Hardware registers mapped and idling.");
+            };
+        } else {
+            console.error("Critical: wii_engine.js failed to attach to the page context.");
+        }
+    </script>
+    
+    <script src="wii_loader.js"></script>
+
+</body>
+</html>
