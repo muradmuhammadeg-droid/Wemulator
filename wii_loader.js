@@ -1,8 +1,7 @@
 // ==========================================
-// BACKGROUND LOADER LOGIC WITH WAD AUTO-BOOT
+// BACKGROUND LOADER LOGIC - BITE-SIZED STREAMING
 // ==========================================
 (function() {
-    // 1. Tell the browser where to find the WebAssembly file on GitHub Pages
     if (typeof Module !== 'undefined') {
         Module.locateFile = function(path) {
             if (path.endsWith('.wasm')) {
@@ -10,21 +9,34 @@
             }
             return path;
         };
-
-        // Wait for WebAssembly compilation to complete
         Module.onRuntimeInitialized = bootWiiEmulatorFrontend;
     }
 
-    // NEW AUTO-BOOT FUNCTION PLACE
+    // Streams the file in tiny chunks to prevent the memory crash
     async function autoBootBundledWad() {
-        console.log("Fetching bundled system menu firmware...");
+        console.log("Streaming system menu firmware in chunks...");
         try {
-            // Fetch the WAD file directly from your GitHub repository folder
             const response = await fetch('./Wii%20Menu%20(Europe)%20(v4.2).wad');
-            const arrayBuffer = await response.arrayBuffer();
-            const rawBytes = new Uint8Array(arrayBuffer);
+            const reader = response.body.getReader();
             
-            // Allocate and push directly to your compiled C++ core
+            // Read the file in small 1MB fragments
+            let chunks = [];
+            while(true) {
+                const {done, value} = await reader.read();
+                if (done) break;
+                chunks.push(value);
+            }
+            
+            // Combine the small pieces safely
+            let totalLength = chunks.reduce((acc, chunk) => acc + chunk.length, 0);
+            let rawBytes = new Uint8Array(totalLength);
+            let offset = 0;
+            for(let chunk of chunks) {
+                rawBytes.set(chunk, offset);
+                offset += chunk.length;
+            }
+            
+            // Push to your existing C++ core allocation
             const wasmPointer = Module._malloc(rawBytes.length);
             Module.HEAPU8.set(rawBytes, wasmPointer);
             Module._loadWiiMenuWad(wasmPointer, rawBytes.length);
@@ -32,32 +44,23 @@
             
             console.log("Wii Menu auto-booted successfully!");
         } catch (err) {
-            console.error("Failed to auto-load bundled WAD:", err);
+            console.error("Streaming failed:", err);
         }
     }
 
     function bootWiiEmulatorFrontend() {
         const canvas = document.querySelector('canvas') || document.getElementById('wii-display');
-        const fileInput = document.getElementById('wii-game-uploader');
         
-        if (!canvas) {
-            console.error("Wii Loader Error: Canvas element not detected on the page!");
-            return;
-        }
-
+        if (!canvas) return;
         const ctx = canvas.getContext('2d');
         const imgData = ctx.createImageData(canvas.width, canvas.height);
         
-        // Initialize our compiled C++ Wii systems
         Module._initWiiSystem(canvas.width, canvas.height);
-        
-        // 2. TRIGGER THE AUTO-BOOT IMMEDIATELY AFTER INITIALIZATION
         autoBootBundledWad();
 
         const vramPointer = Module._getVramAddress();
         let currentTick = 0;
 
-        // Core 60FPS Video Processing Frame Loop
         function runFrameUpdate() {
             currentTick++;
             Module._stepGPUFrame(currentTick);
@@ -69,26 +72,6 @@
 
             requestAnimationFrame(runFrameUpdate);
         }
-        
         runFrameUpdate();
-
-        // Optional manual upload backup listener (stays working)
-        if (fileInput) {
-            fileInput.addEventListener('change', function(e) {
-                const file = e.target.files[0];
-                if (!file) return;
-
-                const reader = new FileReader();
-                reader.onload = function(event) {
-                    const rawBuffer = new Uint8Array(event.target.result);
-                    const wasmBufferPointer = Module._malloc(rawBuffer.length);
-                    Module.HEAPU8.set(rawBuffer, wasmBufferPointer);
-                    Module._loadWiiMenuWad(wasmBufferPointer, rawBuffer.length);
-                    Module._free(wasmBufferPointer);
-                    console.error("Manual WAD pushed over auto-boot.");
-                };
-                reader.readAsArrayBuffer(file);
-            });
-        }
     }
 })();
