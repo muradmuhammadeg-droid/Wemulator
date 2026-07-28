@@ -77,33 +77,13 @@
         <canvas id="wii-display" width="640" height="480"></canvas>
 
         <div class="upload-box">
-            <p style="margin: 0 0 10px 0; font-weight: 600; font-size: 16px;">Load Wii System Firmware Archive</p>
+            <p style="margin: 0 0 10px 0; font-weight: 600; font-size: 16px;">Load a .wad File/p>
             <input type="file" id="wii-game-uploader" accept=".wad">
         </div>
 
         <div id="log-window">System: Ready. Awaiting WebAssembly runtime initialization signal...</div>
     </div>
 
-    <script src="wii_engine.js"></script>
-
-    <script>
-        function logSystemMessage(msg) {
-            const consoleWindow = document.getElementById("log-window");
-            const stamp = new Date().toLocaleTimeString();
-            consoleWindow.textContent = `[${stamp}] - ${msg}\n` + consoleWindow.textContent;
-        }
-
-        if (typeof Module !== 'undefined') {
-            Module.onRuntimeInitialized = () => {
-                logSystemMessage("Compiled WebAssembly Core Engine active in background memory.");
-                Module._initWiiSystem(640, 480);
-                logSystemMessage("Wii Hardware registers mapped and idling.");
-            };
-        } else {
-            console.error("Critical: wii_engine.js failed to attach to the page context.");
-        }
-    </script>
-    
     <script src="wii_loader.js"></script>
 
 </body>
